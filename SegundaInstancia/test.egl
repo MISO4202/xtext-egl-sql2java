@@ -1,0 +1,159 @@
+package test.java;
+
+import static org.junit.Assert.*;
+
+import marketplace.[%=table.name%];
+import marketplace.MarketPlace;
+
+import org.junit.runners.MethodSorters;
+import org.junit.Before;
+import org.junit.FixMethodOrder;
+import org.junit.Test;
+
+import uk.co.jemos.podam.api.PodamFactory;
+import uk.co.jemos.podam.api.PodamFactoryImpl;
+
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
+public class [%=table.name%]Test
+{
+	private MarketPlace mp;
+	private PodamFactory factory;
+	
+	@Before
+	public void prepareTest()
+	{
+		mp = new MarketPlace();
+		factory = new PodamFactoryImpl();
+	}
+	
+	@Test
+	public void test1[%=table.name%]Add()
+	{	
+		[%
+			var variable = table.name.firstToLowerCase();
+		%]
+		[%=table.name%] [%=variable%] = factory.manufacturePojo([%=table.name%].class);
+		factory.populatePojo([%=variable%]);
+		mp.add[%=table.name%]([%=variable%]);
+		
+		assertEquals([%=variable%].getId(), mp.get[%=table.name%]([%=variable%].getId()).getId());
+[% 
+	var vars = table.getClassVars();	
+	for(myVar in vars.keySet()) {
+		var name = vars.get(myVar).get('name'); 
+%]		
+		assertEquals([%=variable%].get[%=name.firstToUpperCase()%](), mp.get[%=table.name%]([%=variable%].getId()).get[%=name.firstToUpperCase()%]());
+[%
+	}
+%]
+	}
+	
+	@Test
+	public void test2Get[%=table.name%]()
+	{	
+		assertNotNull(mp.get[%=table.name%](mp.get[%=table.name%]s().get(0).getId()));
+	}
+	
+	@Test
+	public void test3[%=table.name%]Edit()
+	{	
+	[%
+			var variable = table.name.firstToLowerCase();
+	%]
+		[%=table.name%] [%=variable%] = factory.manufacturePojo([%=table.name%].class);
+		factory.populatePojo([%=variable%]);
+		
+		int primerId = mp.get[%=table.name%]s().get(0).getId();
+		
+		mp.edit[%=table.name%](primerId
+		[% 
+			var vars = table.getClassVars();
+			for(myVar in vars.keySet()) 
+			{ 
+				var type = vars.get(myVar).get('name').firstToUpperCase();
+		%]
+			, [%=variable%].get[%=type%]()
+		[% 	} %]
+		);
+		
+		[% 
+			var vars = table.getClassVars();
+			for(myVar in vars.keySet()) 
+			{ 
+				var type = vars.get(myVar).get('name').firstToUpperCase();
+		%]
+		assertEquals([%=variable%].get[%=type%](), mp.get[%=table.name%](primerId).get[%=type%]());
+		[% 	} %]
+		
+	}
+	
+	@Test
+	public void test4[%=table.name%]Delete()
+	{	
+		int primerId = mp.get[%=table.name%]s().get(0).getId();
+		
+		assertNotNull(mp.get[%=table.name%](primerId));
+		
+		mp.delete[%=table.name%](primerId);
+		
+		assertNull(mp.get[%=table.name%](primerId));
+	}
+
+}
+
+
+
+
+[%
+
+	operation mp!Table getSimpleVars(){
+		var cols = self.facts.select(f | f.isTypeOf(mp!Column)).select(c | c.name.asString() <> "id");
+		var tableFk = self.facts.select(f | f.isTypeOf(mp!ForeignKey)).select(fk | fk.foreignTable.name.asString() <> "");
+		var tableFkColumns = tableFk.collect(fk | fk.localColumns).flatten();
+		
+		var simpleCols = cols.excludingAll(tableFkColumns);
+		var vars = new Map();
+		for(col in simpleCols ){
+			var c = new Map();
+			c.put('name', col.name);
+			c.put('type', col.getType());
+			c.put('object', col);
+			vars.put(col.name, c);
+		}
+		return vars;
+	}
+	
+	operation mp!Table getFKVars(){
+		var tableFk = self.facts.select(f | f.isTypeOf(mp!ForeignKey)).select(fk | fk.foreignTable.name.asString() <> "");
+		
+		var vars = new Map();
+		for(fk in tableFk) 
+		{
+ 			var c = new Map();
+			c.put('name', fk.foreignTable.name.firstToLowerCase());
+			c.put('type', fk.foreignTable.name);
+			c.put('object', fk);
+			vars.put(fk.foreignTable.name.firstToLowerCase(), c);
+		}	
+		
+		return vars;
+	}
+	
+	operation mp!Table getClassVars(){
+		var vars = new Map();
+		vars.putAll(self.getSimpleVars());
+		vars.putAll(self.getFKVars());
+		return vars;
+	}
+
+	
+	operation mp!Column getType() {
+		if(self.type.asString() == "varchar(255)"){
+			return 'String';
+		}
+		else{
+			return self.type;
+		}
+	}	
+	
+%]

@@ -1,0 +1,144 @@
+package marketplace;
+
+import java.util.List;
+
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.Persistence;
+import javax.persistence.Query;
+
+public class MarketPlace
+{
+	private static final String PERSISTENCE_UNIT_NAME = "MarketPlace-Test";
+    private static EntityManagerFactory emf;
+    private EntityManager em;
+	
+	
+	/*
+	 * MarketPlace
+	 */
+	public MarketPlace()
+	{
+		emf = Persistence.createEntityManagerFactory(PERSISTENCE_UNIT_NAME);
+		em = emf.createEntityManager();
+	}
+
+[% 
+	var tables = mp!Database.all.at(0).tables; 
+	for (t in tables) {
+	var className = t.name;
+	var varName = t.name.firstToLowerCase();
+	var firstLetter = t.name.substring(0,1).toLowerCase();
+%]	
+	
+	/*
+	 * [%= className %]
+	 */
+	public List<[%= className %]> get[%= className %]s()
+	{
+		Query q = em.createQuery("SELECT [%= firstLetter %] FROM [%= className %] [%= firstLetter %]");
+		return q.getResultList();
+	}
+	
+	public void add[%= className %]([%= className %] [%= varName %])
+	{
+		em.getTransaction().begin();
+		em.persist([%= varName %]);
+		em.getTransaction().commit();
+	}
+	
+	public void edit[%= className %](int id[%=t.getVarsParamList()%])
+	{
+		[%= className %] [%= varName %] = em.find([%= className %].class, id);
+		em.getTransaction().begin();
+[% 
+	var vars = t.getClassVars();
+	
+	for(myVar in vars.keySet()) {
+%]
+		[%= varName %].set[%=vars.get(myVar).get('name').firstToUpperCase()%]([%=vars.get(myVar).get('name')%]);
+[%
+	}
+%]
+		em.getTransaction().commit();
+	}
+	
+	public void delete[%= className %](int id)
+	{
+		[%= className %] [%= varName %] = em.find([%= className %].class, id);
+		em.getTransaction().begin();
+		em.remove([%= varName %]);
+		em.getTransaction().commit();
+	}
+	
+	public [%= className %] get[%= className %](int id)
+	{
+		return em.find([%= className %].class, id);
+	}
+	
+[% 
+	}
+%]	
+	
+}
+
+[%
+	operation mp!Table getSimpleVars(){
+		var cols = self.facts.select(f | f.isTypeOf(mp!Column)).select(c | c.name.asString() <> "id");
+		var tableFk = self.facts.select(f | f.isTypeOf(mp!ForeignKey)).select(fk | fk.foreignTable.name.asString() <> "");
+		var tableFkColumns = tableFk.collect(fk | fk.localColumns).flatten();
+		
+		var simpleCols = cols.excludingAll(tableFkColumns);
+		var vars = new Map();
+		for(col in simpleCols ){
+			var c = new Map();
+			c.put('name', col.name);
+			c.put('type', col.getType());
+			c.put('object', col);
+			vars.put(col.name, c);
+		}
+		return vars;
+	}
+	
+	operation mp!Table getFKVars(){
+		var tableFk = self.facts.select(f | f.isTypeOf(mp!ForeignKey)).select(fk | fk.foreignTable.name.asString() <> "");
+		
+		var vars = new Map();
+		for(fk in tableFk) 
+		{
+ 			var c = new Map();
+			c.put('name', fk.foreignTable.name.firstToLowerCase());
+			c.put('type', fk.foreignTable.name);
+			c.put('object', fk);
+			vars.put(fk.foreignTable.name.firstToLowerCase(), c);
+		}	
+		
+		return vars;
+	}
+	
+	operation mp!Table getClassVars(){
+		var vars = new Map();
+		vars.putAll(self.getSimpleVars());
+		vars.putAll(self.getFKVars());
+		return vars;
+	}
+	
+	operation mp!Column getType() {
+		if(self.type.asString() == "varchar(255)"){
+			return 'String';
+		}
+		else{
+			return self.type;
+		}
+	}	
+	
+	operation mp!Table getVarsParamList(){
+		var vars = self.getClassVars();
+		var res = "";
+		for(myVar in vars.keySet()) {
+			res = res + ", " + vars.get(myVar).get('type') + " " + vars.get(myVar).get('name');
+		}
+		return res;
+	}
+
+%]

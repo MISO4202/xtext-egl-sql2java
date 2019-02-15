@@ -1,0 +1,35 @@
+[% 
+	var root : mp!Database:= mp!Database.all.at(0); 
+	
+	TemplateFactory.setOutputRoot("generated/co.edu.uniandes.sqlcrud");
+	var tPom:Template:= TemplateFactory.load('createPOM.egl');
+	tPom.generate('pom.xml');
+	
+	var tPersistance:Template:= TemplateFactory.load('createPesistanceXML.egl');
+	tPersistance.generate('./src/META-INF/persistence.xml');
+	
+	var tClassPath:Template:= TemplateFactory.load('createClassPath.egl');
+	tClassPath.generate('.classpath');
+	
+	
+
+	//src
+	var tSrcMarketplace:Template:= TemplateFactory.load('srcMarketplace.egl');
+	tSrcMarketplace.generate('./src/marketplace/MarketPlace.java');
+	
+	
+	for(t in root.tables) {
+		var tSrc:Template:= TemplateFactory.load('src.egl');
+		tSrc.populate('table', t);
+		tSrc.generate('./src/marketplace/' + t.name + '.java');
+	}
+	
+	//test
+	for(t in root.tables) {
+		var tTest:Template:= TemplateFactory.load('test.egl');
+		tTest.populate('table', t);
+		tTest.generate('./src/test/java/' + t.name + 'Test.java');
+	}
+	
+	
+%]
