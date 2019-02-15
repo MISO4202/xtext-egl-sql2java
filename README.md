@@ -1,8 +1,5 @@
-# PetriNet
-co.uniandes.modeling.consultasocl
-# Project Title
-
-This project contains two ecore metamodels, EOL draft files to complete and EVL validations.
+# SQL2Java
+This project includes a xtext grammar for SQL files, and egl transformatios for generate Java Code
 
 ## Getting Started
 
